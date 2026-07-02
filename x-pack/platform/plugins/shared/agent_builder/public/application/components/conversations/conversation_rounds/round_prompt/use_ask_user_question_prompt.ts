@@ -68,7 +68,7 @@ export const useAskUserQuestionPrompt = ({
     const index = draft?.choice?.[0] ?? 0;
     const container = index < customRowIndex ? optionRefs.current.get(index) : customRowRef.current;
     container?.querySelector<HTMLElement>('input')?.focus();
-  }, [currentIndex, customRowIndex]);
+  }, [currentIndex, customRowIndex, isDisabled]);
 
   const setOptionRef = useCallback(
     (index: number) => (el: HTMLDivElement | null) => {
