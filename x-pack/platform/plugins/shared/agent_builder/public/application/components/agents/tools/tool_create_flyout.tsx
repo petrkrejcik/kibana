@@ -16,11 +16,11 @@ import {
   EuiFlyoutBody,
   EuiFlyoutFooter,
   EuiFlyoutHeader,
-  EuiForm,
   EuiSpacer,
   EuiText,
   EuiTitle,
   useEuiTheme,
+  useGeneratedHtmlId,
 } from '@elastic/eui';
 import { css } from '@emotion/react';
 import { FormProvider } from 'react-hook-form';
@@ -31,9 +31,7 @@ import { labels } from '../../../utils/i18n';
 import { useCreateTool } from '../../../hooks/tools/use_create_tools';
 import { useToolForm } from '../../../hooks/tools/use_tool_form';
 import { getCreatePayloadFromData } from '../../tools/form/registry/tools_form_registry';
-import { TypeSection } from '../../tools/form/sections/type';
-import { DetailsSection } from '../../tools/form/sections/details';
-import { ToolFormMode } from '../../tools/form/tool_form';
+import { ToolForm, ToolFormMode } from '../../tools/form/tool_form';
 import type { ToolFormData } from '../../tools/form/types/tool_form_types';
 import { FLYOUT_WIDTH } from '../common/constants';
 
@@ -44,6 +42,7 @@ interface ToolCreateFlyoutProps {
 
 export const ToolCreateFlyout: React.FC<ToolCreateFlyoutProps> = ({ onClose, onToolCreated }) => {
   const { euiTheme } = useEuiTheme();
+  const toolFormId = useGeneratedHtmlId({ prefix: 'toolCreateForm' });
 
   const form = useToolForm();
   const {
@@ -88,11 +87,7 @@ export const ToolCreateFlyout: React.FC<ToolCreateFlyoutProps> = ({ onClose, onT
       <EuiSpacer size="m" />
       <EuiFlyoutBody>
         <FormProvider {...form}>
-          <EuiForm component="form" onSubmit={handleSubmit(onSubmit)} fullWidth>
-            <TypeSection mode={ToolFormMode.Create} />
-            <EuiSpacer size="l" />
-            <DetailsSection mode={ToolFormMode.Create} />
-          </EuiForm>
+          <ToolForm mode={ToolFormMode.Create} formId={toolFormId} saveTool={onSubmit} />
         </FormProvider>
       </EuiFlyoutBody>
 

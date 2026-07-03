@@ -165,14 +165,11 @@ describe('AgentTools', () => {
     expect(screen.getByTestId('toolCreateFlyout')).toBeInTheDocument();
   });
 
-  it('selects the newly created tool as soon as it is attached to the agent', async () => {
+  it('selects the newly created tool immediately, without waiting for the attach mutation', async () => {
     const setSelectedToolId = jest.fn();
     useQueryState.mockReturnValue([undefined, setSelectedToolId]);
 
-    const handleAddTool = jest.fn(
-      (tool: { id: string }, { onSuccess }: { onSuccess?: (toolId: string) => void } = {}) =>
-        onSuccess?.(tool.id)
-    );
+    const handleAddTool = jest.fn();
     useToolsMutation.mockReturnValue({ handleAddTool, handleRemoveTool: jest.fn() });
 
     const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -182,12 +179,9 @@ describe('AgentTools', () => {
     await user.click(screen.getByText('Create a tool'));
     await user.click(screen.getByRole('button', { name: 'Simulate tool created' }));
 
-    expect(handleAddTool).toHaveBeenCalledWith(
-      { id: 'new-tool' },
-      expect.objectContaining({ onSuccess: expect.any(Function) })
-    );
-    // Selection must not depend on the active tools list catching up (it's a
-    // separately-fetched, separately-invalidated list) — only on the add succeeding.
+    expect(handleAddTool).toHaveBeenCalledWith({ id: 'new-tool' });
+    // Selection must not depend on the attach mutation's onSuccess (a separate,
+    // slower network round trip) — the tool is already reflected optimistically.
     expect(setSelectedToolId).toHaveBeenCalledWith('new-tool');
   });
 

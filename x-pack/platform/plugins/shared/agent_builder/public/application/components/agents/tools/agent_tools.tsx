@@ -268,13 +268,10 @@ export const AgentTools: React.FC = () => {
       {isCreateToolOpen ? (
         <ToolCreateFlyout
           onClose={() => setIsCreateToolOpen(false)}
-          onToolCreated={(tool) =>
-            handleAddTool(tool, {
-              onSuccess: () => {
-                setSelectedToolId(tool.id);
-              },
-            })
-          }
+          onToolCreated={(tool) => {
+            handleAddTool(tool);
+            setSelectedToolId(tool.id);
+          }}
         />
       ) : null}
     </>

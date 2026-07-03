@@ -18,13 +18,13 @@ jest.mock('../../../hooks/tools/use_create_tools');
 jest.mock('../../../hooks/tools/use_tool_form');
 jest.mock('../../tools/form/registry/tools_form_registry');
 
-jest.mock('../../tools/form/sections/type', () => ({
-  TypeSection: () => <div data-test-subj="typeSection" />,
-}));
-
-jest.mock('../../tools/form/sections/details', () => ({
-  DetailsSection: () => <div data-test-subj="detailsSection" />,
-}));
+jest.mock('../../tools/form/tool_form', () => {
+  const actual = jest.requireActual('../../tools/form/tool_form');
+  return {
+    ...actual,
+    ToolForm: () => <div data-test-subj="toolForm" />,
+  };
+});
 
 const { useCreateTool } = jest.requireMock('../../../hooks/tools/use_create_tools');
 const { useToolForm } = jest.requireMock('../../../hooks/tools/use_tool_form');
@@ -81,11 +81,10 @@ describe('ToolCreateFlyout', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the Type and Details sections', () => {
+  it('renders the tool form', () => {
     renderComponent();
 
-    expect(screen.getByTestId('typeSection')).toBeInTheDocument();
-    expect(screen.getByTestId('detailsSection')).toBeInTheDocument();
+    expect(screen.getByTestId('toolForm')).toBeInTheDocument();
   });
 
   it('calls onClose when Cancel is clicked', async () => {
