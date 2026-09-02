@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import { getUniqueName, processImageFile } from './upload_image';
+import { getUniqueName, imageFileMeta, processImageFile } from './upload_image';
 import { AttachmentType, MAX_IMAGE_BYTES } from '@kbn/agent-builder-common/attachments';
 
 (global as unknown as { createImageBitmap: jest.Mock }).createImageBitmap = jest
@@ -13,6 +13,12 @@ import { AttachmentType, MAX_IMAGE_BYTES } from '@kbn/agent-builder-common/attac
   .mockResolvedValue({ close: jest.fn() });
 const mockCreateImageBitmap = (global as unknown as { createImageBitmap: jest.Mock })
   .createImageBitmap;
+
+describe('imageFileMeta', () => {
+  it('returns an object with conversation_id', () => {
+    expect(imageFileMeta({ conversationId: 'conv-123' })).toEqual({ conversation_id: 'conv-123' });
+  });
+});
 
 describe('getUniqueName', () => {
   it('returns the original name when no collision', () => {
@@ -63,13 +69,18 @@ describe('processImageFile', () => {
     const result = await processImageFile({
       file: makeFile('shot.png', 'image/png', 100),
       name: 'shot.png',
+      conversationId: 'conv-abc',
       filesClient: filesClient as never,
       upsertAttachments,
       addErrorToast,
     });
 
     expect(filesClient.create).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'shot.png', mimeType: 'image/png' })
+      expect.objectContaining({
+        name: 'shot.png',
+        mimeType: 'image/png',
+        meta: { conversation_id: 'conv-abc' },
+      })
     );
     expect(filesClient.upload).toHaveBeenCalledWith(expect.objectContaining({ id: 'file-abc' }));
     expect(upsertAttachments).toHaveBeenCalledWith([
@@ -93,6 +104,7 @@ describe('processImageFile', () => {
     const result = await processImageFile({
       file: makeFile('video.jpg', 'image/jpeg', 100),
       name: 'video.jpg',
+      conversationId: 'conv-abc',
       filesClient: filesClient as never,
       upsertAttachments,
       addErrorToast,
@@ -112,6 +124,7 @@ describe('processImageFile', () => {
     const result = await processImageFile({
       file: makeFile('image.gif', 'image/gif', 100),
       name: 'image.gif',
+      conversationId: 'conv-abc',
       filesClient: filesClient as never,
       upsertAttachments,
       addErrorToast,
@@ -131,6 +144,7 @@ describe('processImageFile', () => {
     const result = await processImageFile({
       file: makeFile('big.png', 'image/png', MAX_IMAGE_BYTES + 1),
       name: 'big.png',
+      conversationId: 'conv-abc',
       filesClient: filesClient as never,
       upsertAttachments,
       addErrorToast,
@@ -160,6 +174,7 @@ describe('processImageFile', () => {
     const result = await processImageFile({
       file: makeFile('shot.png', 'image/png', 100),
       name: 'shot.png',
+      conversationId: 'conv-abc',
       filesClient: filesClient as never,
       upsertAttachments,
       addErrorToast,
@@ -182,6 +197,7 @@ describe('processImageFile', () => {
     const result = await processImageFile({
       file: makeFile('shot.png', 'image/png', 100),
       name: 'shot.png',
+      conversationId: 'conv-abc',
       filesClient: filesClient as never,
       upsertAttachments,
       addErrorToast,

@@ -12,6 +12,8 @@ import type { ConversationActions } from './use_conversation_actions';
 
 interface ConversationContextValue {
   conversationId?: string;
+  /** UUID for the next new conversation, used to tag uploads before the first message. */
+  pendingConversationId?: string;
   shouldStickToBottom?: boolean;
   isEmbeddedContext: boolean;
   sessionTag?: string;

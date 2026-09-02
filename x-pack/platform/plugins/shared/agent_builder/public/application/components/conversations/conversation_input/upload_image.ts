@@ -31,6 +31,13 @@ const labels = {
   }),
 };
 
+/** Meta written to every uploaded image file. */
+export const imageFileMeta = ({
+  conversationId,
+}: {
+  conversationId: string;
+}): { conversation_id: string } => ({ conversation_id: conversationId });
+
 /** Returns a name that is not already in `existingNames`. Appends ` 2`, ` 3`, ... as needed. */
 export const getUniqueName = (originalName: string, existingNames: Set<string>): string => {
   if (!existingNames.has(originalName)) return originalName;
@@ -50,6 +57,7 @@ export const getUniqueName = (originalName: string, existingNames: Set<string>):
 export const processImageFile = async ({
   file,
   name,
+  conversationId,
   filesClient,
   upsertAttachments,
   addErrorToast,
@@ -57,6 +65,7 @@ export const processImageFile = async ({
 }: {
   file: File;
   name: string;
+  conversationId: string;
   filesClient: ScopedFilesClient;
   upsertAttachments: (attachments: ConversationAttachment[]) => void;
   addErrorToast: (input: ToastInput) => void;
@@ -85,7 +94,11 @@ export const processImageFile = async ({
   }
 
   try {
-    const { file: fileEntry } = await filesClient.create({ name, mimeType: file.type });
+    const { file: fileEntry } = await filesClient.create({
+      name,
+      mimeType: file.type,
+      meta: imageFileMeta({ conversationId }),
+    });
     await filesClient.upload({
       id: fileEntry.id,
       body: file,

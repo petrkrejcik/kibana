@@ -25,13 +25,14 @@ import { appPaths } from '../utils/app_paths';
 export const useSubmitMessage = () => {
   const conversationId = useConversationId();
   const { sendMessage } = useConversationStream();
-  const { isEmbeddedContext, setConversationId, agentId } = useConversationContext();
+  const { isEmbeddedContext, setConversationId, agentId, pendingConversationId } =
+    useConversationContext();
   const { navigateToAgentBuilderUrl } = useNavigation();
 
   return useCallback(
     (message: string) => {
       const isNew = !conversationId;
-      const targetId = conversationId ?? uuidv4();
+      const targetId = conversationId ?? pendingConversationId ?? uuidv4();
 
       sendMessage({ message, conversationId: targetId });
 
@@ -48,6 +49,7 @@ export const useSubmitMessage = () => {
     },
     [
       conversationId,
+      pendingConversationId,
       sendMessage,
       isEmbeddedContext,
       setConversationId,

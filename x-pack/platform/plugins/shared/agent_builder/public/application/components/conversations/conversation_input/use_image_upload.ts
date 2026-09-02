@@ -35,8 +35,14 @@ export const useImageUpload = ({
   messageEditorController,
 }: UseImageUploadParams): UseImageUploadResult => {
   const { filesClient } = useAgentBuilderServices();
-  const { attachments, conversationId, upsertAttachments, removeAttachment } =
-    useConversationContext();
+  const {
+    attachments,
+    conversationId,
+    pendingConversationId,
+    upsertAttachments,
+    removeAttachment,
+  } = useConversationContext();
+  const effectiveConversationId = conversationId ?? pendingConversationId ?? '';
   const [uploadingNames, setUploadingNames] = useState<Set<string>>(new Set());
   const uploadControllers = useRef<Map<string, AbortController>>(new Map());
 
@@ -77,6 +83,7 @@ export const useImageUpload = ({
       processImageFile({
         file,
         name,
+        conversationId: effectiveConversationId,
         filesClient,
         upsertAttachments,
         addErrorToast,
@@ -99,7 +106,14 @@ export const useImageUpload = ({
         });
       return name;
     },
-    [upsertAttachments, filesClient, addErrorToast, uploadingNames, messageEditorController]
+    [
+      upsertAttachments,
+      filesClient,
+      addErrorToast,
+      uploadingNames,
+      messageEditorController,
+      effectiveConversationId,
+    ]
   );
 
   const handleAfterInput = useCallback(() => {

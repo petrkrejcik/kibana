@@ -6,6 +6,7 @@
  */
 
 import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { I18nProvider } from '@kbn/i18n-react';
 import { KibanaContextProvider } from '@kbn/kibana-react-plugin/public';
 import { QueryClient, QueryClientProvider } from '@kbn/react-query';
@@ -205,6 +206,9 @@ export const EmbeddableConversationsProvider: React.FC<EmbeddableConversationsPr
     return persistedConversationId;
   }, [currentProps, persistedConversationId]);
 
+  // One stable id per mount.
+  const pendingConversationId = useMemo(() => uuidv4(), []);
+
   const conversationActions = useConversationActions({
     conversationId,
     queryClient,
@@ -253,6 +257,7 @@ export const EmbeddableConversationsProvider: React.FC<EmbeddableConversationsPr
   const conversationContextValue = useMemo(
     () => ({
       conversationId,
+      pendingConversationId,
       shouldStickToBottom: true,
       isEmbeddedContext: true,
       sessionTag: currentProps.sessionTag,
@@ -272,6 +277,7 @@ export const EmbeddableConversationsProvider: React.FC<EmbeddableConversationsPr
     }),
     [
       conversationId,
+      pendingConversationId,
       currentProps.sessionTag,
       currentProps.agentId,
       currentProps.initialMessage,
