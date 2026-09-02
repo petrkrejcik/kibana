@@ -6,6 +6,7 @@
  */
 
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useLocation, useParams } from 'react-router-dom';
 import { useQueryClient } from '@kbn/react-query';
 import type { ConversationAttachment } from '@kbn/agent-builder-common/attachments';
@@ -41,6 +42,9 @@ export const RoutedConversationsProvider: React.FC<RoutedConversationsProviderPr
   const conversationId = useMemo(() => {
     return conversationIdParam === 'new' ? undefined : conversationIdParam;
   }, [conversationIdParam]);
+
+  // One stable id per mount.
+  const pendingConversationId = useMemo(() => uuidv4(), []);
 
   const agentIdFromPath = agentIdParam;
 
@@ -120,6 +124,7 @@ export const RoutedConversationsProvider: React.FC<RoutedConversationsProviderPr
   const contextValue = useMemo(
     () => ({
       conversationId,
+      pendingConversationId,
       shouldStickToBottom,
       isEmbeddedContext: false,
       conversationActions,
@@ -133,6 +138,7 @@ export const RoutedConversationsProvider: React.FC<RoutedConversationsProviderPr
     }),
     [
       conversationId,
+      pendingConversationId,
       shouldStickToBottom,
       conversationActions,
       initialMessage,
