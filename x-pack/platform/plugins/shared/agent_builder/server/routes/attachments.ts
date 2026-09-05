@@ -322,7 +322,8 @@ export function registerAttachmentRoutes({
           attachment = await stateManager.add(
             { id, type, data, origin, description, hidden },
             ATTACHMENT_REF_ACTOR.user,
-            resolveContext
+            resolveContext,
+            { request }
           );
         } catch (e) {
           return response.badRequest({
