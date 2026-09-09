@@ -75,6 +75,7 @@ import {
   setSidebarRuntimeContext,
   clearSidebarRuntimeContext,
 } from './sidebar';
+import { appPaths } from './application/utils/app_paths';
 import { storageKeys } from './application/storage_keys';
 import { AGENTBUILDER_APP_ID } from '../common/features';
 
@@ -345,11 +346,25 @@ export class AgentBuilderPlugin
         }));
       });
 
+    const publicAttachmentsService = createPublicAttachmentContract({ attachmentsService });
+
     const agentBuilderService: AgentBuilderPluginStart = {
       agents: createPublicAgentsContract({ agentService }),
-      attachments: createPublicAttachmentContract({ attachmentsService }),
+      attachments: publicAttachmentsService,
       conversationTemplates: createPublicConversationTemplatesContract({
         conversationTemplatesService,
+        context: {
+          attachmentsService: publicAttachmentsService,
+          openSidebarConversation: (conversationId) => {
+            openSidebarInternal({ conversationId });
+          },
+          openFullscreenConversation: ({ conversationId, agentId }) => {
+            agentBuilderSidebar.close();
+            return core.application.navigateToApp(AGENTBUILDER_APP_ID, {
+              path: appPaths.agent.conversations.byId({ agentId, conversationId }),
+            });
+          },
+        },
       }),
       renderers: createPublicRenderersContract({ renderersService }),
       tools: createPublicToolContract({ toolsService }),

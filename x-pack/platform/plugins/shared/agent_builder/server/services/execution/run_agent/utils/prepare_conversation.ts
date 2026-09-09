@@ -20,11 +20,13 @@ import {
   ATTACHMENT_REF_ACTOR,
   getLatestVersion,
   getContentKey,
+  hashContent,
 } from '@kbn/agent-builder-common/attachments';
 import type { ProcessedAttachmentType, ProcessedRoundInput } from '@kbn/agent-builder-server';
 import type {
   AttachmentResolveContext,
   AttachmentStateManager,
+  AttachmentValidateContext,
 } from '@kbn/agent-builder-server/attachments';
 import type { AgentHandlerContext } from '@kbn/agent-builder-server/agents';
 
@@ -61,7 +63,11 @@ const mergeInputAttachmentsIntoAttachmentState = async (
   attachmentStateManager: AttachmentStateManager,
   attachmentContentByKey: Map<string, string>,
   inputs: AttachmentInput[],
-  options: { updateOriginSnapshot?: boolean; resolveContext: AttachmentResolveContext }
+  options: {
+    updateOriginSnapshot?: boolean;
+    resolveContext: AttachmentResolveContext;
+    validateContext?: AttachmentValidateContext;
+  }
 ): Promise<void> => {
   if (inputs.length === 0) return;
 
@@ -70,13 +76,19 @@ const mergeInputAttachmentsIntoAttachmentState = async (
     if (input.id) {
       const existing = attachmentStateManager.getAttachmentRecord(input.id);
       if (existing) {
+        // Skip validate() when content is unchanged
+        const dataUnchanged =
+          input.data !== undefined &&
+          getLatestVersion(existing)?.content_hash === hashContent(input.data);
+
         await attachmentStateManager.update(
           input.id,
           {
-            data: input.data,
+            ...(dataUnchanged ? {} : { data: input.data }),
             ...(input.hidden !== undefined ? { hidden: input.hidden } : {}),
           },
-          ATTACHMENT_REF_ACTOR.user
+          ATTACHMENT_REF_ACTOR.user,
+          options.validateContext
         );
         if (options?.updateOriginSnapshot && existing.origin !== undefined) {
           await attachmentStateManager.updateOrigin(
@@ -106,7 +118,8 @@ const mergeInputAttachmentsIntoAttachmentState = async (
         ...(input.group_id !== undefined ? { group_id: input.group_id } : {}),
       },
       ATTACHMENT_REF_ACTOR.user,
-      options.resolveContext
+      options.resolveContext,
+      options.validateContext
     );
 
     const latest = getLatestVersion(created);
@@ -172,6 +185,9 @@ export const prepareConversation = async ({
     spaceId: context.spaceId,
     savedObjectsClient: context.savedObjectsClient,
   };
+  const validateContext: AttachmentValidateContext = {
+    request: context.request,
+  };
 
   // Pre-populate content keys from already-known attachments to detect duplicates.
   const attachmentContentByKey = new Map<string, string>();
@@ -198,7 +214,7 @@ export const prepareConversation = async ({
         attachmentStateManager,
         attachmentContentByKey,
         round.input.attachments,
-        { resolveContext }
+        { resolveContext, validateContext }
       );
     }
     const attachmentRefs = mergeAttachmentRefs(
@@ -224,7 +240,7 @@ export const prepareConversation = async ({
     attachmentStateManager,
     attachmentContentByKey,
     nextInputAttachments,
-    { updateOriginSnapshot: true, resolveContext }
+    { updateOriginSnapshot: true, resolveContext, validateContext }
   );
   const nextInputAccessedRefs = attachmentStateManager.getAccessedRefs();
   const mergedNextInputRefs = mergeAttachmentRefs(
