@@ -5,13 +5,18 @@
  * 2.0.
  */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { EuiGlobalToastList } from '@elastic/eui';
+import type { EuiGlobalToastListToast } from '@elastic/eui';
+import { QueryClient } from '@kbn/react-query';
 import { fn, userEvent, within } from '@storybook/test';
+import type { VersionedAttachment } from '@kbn/agent-builder-common';
 import type { ConversationAttachment } from '@kbn/agent-builder-common/attachments';
 import { MAX_PDF_BYTES } from '@kbn/agent-builder-common/attachments';
 import { AgentBuilderStorybookProvider } from '../../../__storybook__/agent_builder_storybook_provider';
 import { createStorybookAgentBuilderServices } from '../../../__storybook__/agent_builder_services';
+import { createStorybookKibanaServices } from '../../../__storybook__/kibana_services';
 import { useConversationContext } from '../../../context/conversation/conversation_context';
 import { ConversationInput } from './conversation_input';
 
@@ -89,6 +94,9 @@ const pastePdf = async (
   if (typeText) {
     await userEvent.type(editor, typeText);
   }
+
+  // The availability check answers right after mount; give it a moment before the paste.
+  await new Promise((resolve) => setTimeout(resolve, 100));
 
   const dt = new DataTransfer();
   dt.items.add(createPdfFile(name, sizeBytes));
@@ -221,59 +229,165 @@ export const ImageMultipleWithTrickyFilenames: Story = {
   },
 };
 
-// TODO(pdf upload step 9): provide `pdfFilesClient: neverResolvingFilesClient` and a never-resolving `attachmentsService.create` mock so the pill keeps the spinner.
+const STORY_PDF_ATTACHMENT: VersionedAttachment = {
+  id: 'story-pdf-attachment',
+  type: 'pdf',
+  current_version: 1,
+  versions: [
+    {
+      version: 1,
+      data: { file_id: 'story-pdf-file', name: 'invoice.pdf', text: 'Hello' },
+      created_at: '2026-10-09T10:00:00.000Z',
+      content_hash: 'story-pdf-hash',
+    },
+  ],
+};
+
+const STORY_CONVERSATION = {
+  id: 'story-conversation',
+  agent_id: 'elastic-ai-agent',
+  user: { id: 'story-user', username: 'story-user' },
+  title: 'New conversation',
+  created_at: '2026-10-09T10:00:00.000Z',
+  updated_at: '2026-10-09T10:00:00.000Z',
+  rounds: [],
+  attachments: [],
+};
+
+const READING_TIME_MS = 800;
+const readsPdf = () =>
+  new Promise<VersionedAttachment>((resolve) =>
+    setTimeout(() => resolve(STORY_PDF_ATTACHMENT), READING_TIME_MS)
+  );
+const neverReadsPdf = () => new Promise<VersionedAttachment>(() => {});
+
+const createPdfStoryServices = ({
+  create = readsPdf,
+  isAvailable = true,
+  filesClient,
+}: {
+  create?: () => Promise<VersionedAttachment>;
+  isAvailable?: boolean;
+  filesClient?: unknown;
+}) => {
+  const defaults = createStorybookAgentBuilderServices();
+  // Keeps the real attachment types of the storybook service and replaces only the calls.
+  const pdfAttachmentsService = Object.assign(Object.create(defaults.attachmentsService), {
+    create,
+    delete: () => Promise.resolve(),
+    isPdfAvailable: () => Promise.resolve(isAvailable),
+  });
+  return {
+    pdfFilesClient: (filesClient ?? defaults.filesClient) as typeof defaults.pdfFilesClient,
+    attachmentsService: pdfAttachmentsService,
+    conversationsService: { create: () => Promise.resolve(STORY_CONVERSATION) } as never,
+  };
+};
+
+/** Gives a PDF story its own query cache, so the availability answer does not carry over, and shows toasts. */
+const PdfStoryProvider: React.FC<{
+  services: ReturnType<typeof createPdfStoryServices>;
+  children: React.ReactNode;
+}> = ({ services, children }) => {
+  const [toasts, setToasts] = useState<EuiGlobalToastListToast[]>([]);
+  const queryClient = useMemo(
+    () => new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    []
+  );
+  const kibanaServices = useMemo(() => {
+    const base = createStorybookKibanaServices();
+    base.notifications.toasts.addDanger = (input) => {
+      const title = typeof input === 'string' ? input : String(input.title);
+      setToasts((current) => [
+        ...current,
+        { id: `${current.length}`, title, color: 'danger' as const },
+      ]);
+      return {} as never;
+    };
+    return base;
+  }, []);
+
+  return (
+    <>
+      <AgentBuilderStorybookProvider
+        services={services}
+        queryClient={queryClient}
+        kibanaServices={kibanaServices}
+      >
+        {children}
+      </AgentBuilderStorybookProvider>
+      <EuiGlobalToastList
+        toasts={toasts}
+        dismissToast={({ id }) => setToasts((current) => current.filter((t) => t.id !== id))}
+        toastLifeTimeMs={60000}
+      />
+    </>
+  );
+};
+
+const withPdfServices = (options: Parameters<typeof createPdfStoryServices>[0] = {}) => [
+  (Story: React.ComponentType) => (
+    <PdfStoryProvider services={createPdfStoryServices(options)}>
+      <Story />
+    </PdfStoryProvider>
+  ),
+];
+
 export const PdfLoading: Story = {
   name: 'PDF - Loading',
+  decorators: withPdfServices({ create: neverReadsPdf, filesClient: neverResolvingFilesClient }),
   play: async ({ canvasElement }) => {
     await pastePdf(canvasElement, { name: 'invoice.pdf' });
   },
 };
 
-// TODO(pdf upload step 9): provide a resolving `pdfFilesClient` and an `attachmentsService.create` mock that returns a pdf attachment.
 export const PdfOne: Story = {
   name: 'PDF - 1 PDF',
+  decorators: withPdfServices(),
   play: async ({ canvasElement }) => {
     await pastePdf(canvasElement, { name: 'invoice.pdf', typeText: 'Summarize this: ' });
   },
 };
 
-// TODO(pdf upload step 9): provide a resolving `pdfFilesClient` and an `attachmentsService.create` mock that returns a pdf attachment.
 export const PdfWithImage: Story = {
   name: 'PDF - Image + PDF',
+  decorators: withPdfServices(),
   play: async ({ canvasElement }) => {
     await pasteImage(canvasElement, { name: 'chart.png' });
     await pastePdf(canvasElement, { name: 'invoice.pdf' });
   },
 };
 
-// TODO(pdf upload step 9): provide a resolving `pdfFilesClient` and an `attachmentsService.create` mock; the second paste should show a toast.
 export const PdfSecondRefused: Story = {
   name: 'PDF - Second PDF refused',
+  decorators: withPdfServices(),
   play: async ({ canvasElement }) => {
     await pastePdf(canvasElement, { name: 'invoice.pdf' });
     await pastePdf(canvasElement, { name: 'contract.pdf' });
   },
 };
 
-// TODO(pdf upload step 9): mock the PDF availability hook to return `true`; the size check runs before upload, so the paste should show a toast.
 export const PdfTooLarge: Story = {
   name: 'PDF - Too large',
+  decorators: withPdfServices(),
   play: async ({ canvasElement }) => {
     await pastePdf(canvasElement, { name: 'huge.pdf', sizeBytes: MAX_PDF_BYTES + 1 });
   },
 };
 
-// TODO(pdf upload step 9): provide a resolving `pdfFilesClient` and an `attachmentsService.create` mock that rejects with "Could not read the PDF. Try again later.".
 export const PdfServerError: Story = {
   name: 'PDF - Server error',
+  decorators: withPdfServices({
+    create: () => Promise.reject(new Error('Could not read the PDF. Try again later.')),
+  }),
   play: async ({ canvasElement }) => {
     await pastePdf(canvasElement, { name: 'invoice.pdf' });
   },
 };
 
-// TODO(pdf upload step 9): mock the PDF availability hook to return `false` so the paste does nothing.
 export const PdfNotAvailable: Story = {
   name: 'PDF - Not available',
+  decorators: withPdfServices({ isAvailable: false }),
   play: async ({ canvasElement }) => {
     await pastePdf(canvasElement, { name: 'invoice.pdf' });
   },
