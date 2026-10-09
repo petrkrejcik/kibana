@@ -86,6 +86,7 @@ jest.mock('../../../hooks/use_is_pdf_upload_available', () => ({
   useIsPdfUploadAvailable: jest.fn(),
 }));
 let mockMessageEditorProps: {
+  onSubmit?: () => void;
   onPasteFile?: (file: File) => string | undefined;
   onAfterInput?: () => void;
   acceptPdf?: boolean;
@@ -93,7 +94,7 @@ let mockMessageEditorProps: {
 } = {};
 jest.mock('./message_editor', () => ({
   useMessageEditor: jest.fn(),
-  MessageEditor: (props: { onSubmit: () => void }) => {
+  MessageEditor: (props: typeof mockMessageEditorProps) => {
     mockMessageEditorProps = props;
     return (
       <button data-test-subj="mock-message-editor-submit" type="button" onClick={props.onSubmit}>

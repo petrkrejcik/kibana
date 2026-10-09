@@ -225,9 +225,9 @@ const useMessageEditorController = ({
           syncIsEmpty();
         }
       },
-      getPlaceholderNames: (kind) =>
+      getPlaceholderNames: (kind?: PlaceholderKind) =>
         ref.current ? getPlaceholderNamesFromElement(ref.current, kind) : [],
-      removePlaceholderByName: (name, kind) => {
+      removePlaceholderByName: (name: string, kind?: PlaceholderKind) => {
         if (ref.current) {
           removePlaceholderByNameFromDom(ref.current, name, kind);
           syncIsEmpty();
