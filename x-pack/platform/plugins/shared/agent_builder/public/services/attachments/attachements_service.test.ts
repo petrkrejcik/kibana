@@ -53,6 +53,13 @@ describe('AttachmentsService HTTP methods', () => {
     expect(res).toEqual({ id: 'a1' });
   });
 
+  it('isPdfAvailable GETs the availability route and unwraps `available`', async () => {
+    const { http, service } = setup();
+    http.get.mockResolvedValue({ available: true });
+    expect(await service.isPdfAvailable()).toBe(true);
+    expect(http.get).toHaveBeenCalledWith('/internal/agent_builder/attachments/pdf/_available');
+  });
+
   it('update PUTs the body and unwraps `attachment`', async () => {
     const { http, service } = setup();
     http.put.mockResolvedValue({ attachment: { id: 'a1' }, new_version: 2 });
