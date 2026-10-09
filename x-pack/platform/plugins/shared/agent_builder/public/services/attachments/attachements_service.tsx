@@ -137,12 +137,16 @@ export class AttachmentsService {
     return attachment;
   }
 
-  async create({ conversationId, ...body }: CreateAttachmentArgs): Promise<VersionedAttachment> {
+  async create({
+    conversationId,
+    signal,
+    ...body
+  }: CreateAttachmentArgs): Promise<VersionedAttachment> {
     const { attachment } = await this.http.post<CreateAttachmentResponse>(
       buildPath(`${publicApiPath}/conversations/{conversationId}/attachments`, {
         conversationId,
       }),
-      { body: JSON.stringify(body) }
+      { body: JSON.stringify(body), signal }
     );
     return attachment;
   }
