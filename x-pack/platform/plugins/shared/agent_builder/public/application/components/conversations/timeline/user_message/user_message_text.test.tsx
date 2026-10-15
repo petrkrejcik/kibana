@@ -304,6 +304,22 @@ describe('UserMessageText', () => {
       expect(screen.getByText('photo.png')).toBeInTheDocument();
     });
 
+    it('renders a file badge for text scheme links, with the name decoded', () => {
+      renderWithProvider(<UserMessageText text="Read [my notes.md](text://my%20notes.md)" />);
+
+      expect(screen.getByText('my notes.md')).toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('renders a file badge for binary scheme links, with the name decoded', () => {
+      renderWithProvider(
+        <UserMessageText text="Read [My invoice.pdf](binary://My%20invoice.pdf)" />
+      );
+
+      expect(screen.getByText('My invoice.pdf')).toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
     it('renders image badge alongside plain text', () => {
       renderWithProvider(
         <UserMessageText text="See [screenshot.png](image://screenshot.png) for details" />
@@ -339,30 +355,56 @@ describe('UserMessageText', () => {
       expect(screen.getByText('/Summarize')).toBeInTheDocument();
     });
 
-    describe('onHoverImage', () => {
-      it('calls onHoverImage with the image name on mouse enter', () => {
-        const onHoverImage = jest.fn();
+    describe('onHoverAttachment', () => {
+      it('calls onHoverAttachment with the image name on mouse enter', () => {
+        const onHoverAttachment = jest.fn();
         renderWithProvider(
-          <UserMessageText text="[photo.png](image://photo.png)" onHoverImage={onHoverImage} />
+          <UserMessageText
+            text="[photo.png](image://photo.png)"
+            onHoverAttachment={onHoverAttachment}
+          />
         );
 
         const badge = screen.getByText('photo.png').closest('span')!;
         fireEvent.mouseEnter(badge);
-        expect(onHoverImage).toHaveBeenCalledWith('photo.png');
+        expect(onHoverAttachment).toHaveBeenCalledWith('photo.png');
       });
 
-      it('calls onHoverImage with null on mouse leave', () => {
-        const onHoverImage = jest.fn();
+      it('calls onHoverAttachment with null on mouse leave', () => {
+        const onHoverAttachment = jest.fn();
         renderWithProvider(
-          <UserMessageText text="[photo.png](image://photo.png)" onHoverImage={onHoverImage} />
+          <UserMessageText
+            text="[photo.png](image://photo.png)"
+            onHoverAttachment={onHoverAttachment}
+          />
         );
 
         const badge = screen.getByText('photo.png').closest('span')!;
         fireEvent.mouseLeave(badge);
-        expect(onHoverImage).toHaveBeenCalledWith(null);
+        expect(onHoverAttachment).toHaveBeenCalledWith(null);
       });
 
-      it('does not crash when onHoverImage is not provided', () => {
+      it.each([
+        ['mouse enter', 'mouseEnter', 'invoice.pdf'],
+        ['mouse leave', 'mouseLeave', null],
+      ] as const)(
+        'calls onHoverAttachment for a document badge on %s',
+        (_label, event, expected) => {
+          const onHoverAttachment = jest.fn();
+          renderWithProvider(
+            <UserMessageText
+              text="[invoice.pdf](binary://invoice.pdf)"
+              onHoverAttachment={onHoverAttachment}
+            />
+          );
+
+          fireEvent[event](screen.getByText('invoice.pdf').closest('span')!);
+
+          expect(onHoverAttachment).toHaveBeenCalledWith(expected);
+        }
+      );
+
+      it('does not crash when onHoverAttachment is not provided', () => {
         renderWithProvider(<UserMessageText text="[photo.png](image://photo.png)" />);
         const badge = screen.getByText('photo.png').closest('span')!;
         expect(() => {

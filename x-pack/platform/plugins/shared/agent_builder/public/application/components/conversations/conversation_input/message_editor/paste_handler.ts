@@ -14,8 +14,11 @@ import {
   isElementCommandBadge,
 } from './command_badge';
 import { COMMAND_METADATA_ATTRIBUTE } from './command_badge/attributes';
-import { insertImagePlaceholderChip } from './image_placeholder';
+import { insertAttachmentPlaceholderChip, type PlaceholderKind } from './attachment_placeholder';
+import { getFileAttachmentKind, getFileMimeType, type FileMimeType } from '../file_type';
 import { createTextFragment, ensureCaretTargetBeforeFirstBadge, insertNodeAtCursor } from './utils';
+
+const NO_FILE_TYPES: readonly FileMimeType[] = [];
 
 const stringContainsBadge = (html: string): boolean => html.includes(COMMAND_BADGE_ATTRIBUTE);
 
@@ -64,29 +67,39 @@ const createTextAndBadgeFragment = (sanitizedHtml: DocumentFragment): DocumentFr
 
 export interface HandleEditorPasteOpts {
   onPasteFile?: (file: File) => string | undefined;
+  acceptedFileMimeTypes?: readonly FileMimeType[];
   editorRef: RefObject<HTMLDivElement>;
   onChange: () => void;
   onAfterInput?: () => void;
 }
 
-/** Handles the image-file branch of a paste event. Returns true if consumed. */
-const handleImageFilePaste = (event: ClipboardEvent, opts: HandleEditorPasteOpts): boolean => {
-  const { onPasteFile, onChange } = opts;
+const getPastedFileKind = (
+  file: File,
+  acceptedFileMimeTypes: readonly FileMimeType[]
+): PlaceholderKind | undefined => {
+  if (file.type.startsWith('image/')) return 'image';
+  const mimeType = getFileMimeType(file);
+  if (mimeType && acceptedFileMimeTypes.includes(mimeType)) return getFileAttachmentKind(mimeType);
+  return undefined;
+};
+
+/** Handles the image and file branch of a paste event. Returns true if consumed. */
+const handleFilePaste = (event: ClipboardEvent, opts: HandleEditorPasteOpts): boolean => {
+  const { onPasteFile, acceptedFileMimeTypes = NO_FILE_TYPES, onChange } = opts;
   if (!onPasteFile || !event.clipboardData) return false;
 
-  const imageItem = Array.from(event.clipboardData.items).find(
-    (item) => item.kind === 'file' && item.type.startsWith('image/')
-  );
-  if (!imageItem) return false;
+  const fileItem = Array.from(event.clipboardData.items).find((item) => item.kind === 'file');
+  const file = fileItem?.getAsFile();
+  if (!file) return false;
+
+  const kind = getPastedFileKind(file, acceptedFileMimeTypes);
+  if (!kind) return false;
 
   event.preventDefault();
-  const file = imageItem.getAsFile();
-  if (file) {
-    const label = onPasteFile(file);
-    if (label) {
-      insertImagePlaceholderChip(label);
-      onChange();
-    }
+  const label = onPasteFile(file);
+  if (label) {
+    insertAttachmentPlaceholderChip(label, kind);
+    onChange();
   }
   return true;
 };
@@ -116,11 +129,11 @@ const handleTextOrBadgePaste = (event: ClipboardEvent, opts: HandleEditorPasteOp
 
 /**
  * Full paste handler for the message editor contentEditable.
- * Dispatches to image-file paste or text/badge paste based on clipboard content.
+ * Dispatches to image/file paste or text/badge paste based on clipboard content.
  */
 export const handleEditorPaste = (event: ClipboardEvent, opts: HandleEditorPasteOpts): void => {
-  const handledAsImage = handleImageFilePaste(event, opts);
-  if (!handledAsImage) {
+  const handledAsFile = handleFilePaste(event, opts);
+  if (!handledAsFile) {
     handleTextOrBadgePaste(event, opts);
   }
   opts.onAfterInput?.(); // to sync with the pills
