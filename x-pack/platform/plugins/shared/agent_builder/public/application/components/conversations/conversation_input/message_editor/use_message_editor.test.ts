@@ -50,7 +50,7 @@ describe('useMessageEditor handleCommandSelect', () => {
     const { result } = renderHook(() => useMessageEditor());
     attachRef(result.current.messageEditor, div);
 
-    div.textContent = '@connector/workday';
+    div.textContent = '#connector/workday';
     setCursorAtEnd(div);
 
     act(() => {
@@ -72,8 +72,8 @@ describe('useMessageEditor handleCommandSelect', () => {
 
     const badge = div.querySelector('[data-command-badge]');
     expect(badge).not.toBeNull();
-    expect(badge!.textContent).toBe('@connector/workday');
-    expect(stripZeroWidthSpaces(div.textContent ?? '')).toBe(`@connector/workday${NBSP}`);
+    expect(badge!.textContent).toBe('#connector/workday');
+    expect(stripZeroWidthSpaces(div.textContent ?? '')).toBe(`#connector/workday${NBSP}`);
   });
 });
 
@@ -99,6 +99,31 @@ describe('useMessageEditor setContent', () => {
     });
 
     expect(result.current.controller.getPlaceholderNames()).toEqual(['photo.png']);
+  });
+
+  it('restores a serialized binary placeholder as a binary chip', () => {
+    const { result } = renderHook(() => useMessageEditor());
+    attachRef(result.current.messageEditor, div);
+
+    act(() => {
+      result.current.controller.setContent('[invoice.pdf](binary://invoice.pdf)');
+    });
+
+    expect(result.current.controller.getPlaceholderNames('binary')).toEqual(['invoice.pdf']);
+    expect(result.current.controller.getPlaceholderNames()).toEqual([]);
+  });
+
+  it('restores a serialized text file placeholder as a text chip', () => {
+    const { result } = renderHook(() => useMessageEditor());
+    attachRef(result.current.messageEditor, div);
+
+    act(() => {
+      result.current.controller.setContent('[notes.md](text://notes.md)');
+    });
+
+    expect(result.current.controller.getPlaceholderNames('text')).toEqual(['notes.md']);
+    expect(result.current.controller.getPlaceholderNames('binary')).toEqual([]);
+    expect(result.current.controller.getPlaceholderNames()).toEqual([]);
   });
 
   it('is not empty when the message only holds an image attachment', () => {
